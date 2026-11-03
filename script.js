@@ -1,1 +1,179 @@
-const key='simple-todo-v1';let todos;try{todos=JSON.parse(localStorage.getItem(key))}catch{}if(!Array.isArray(todos))todos=[{id:1,text:'See Lecture',done:false},{id:2,text:'Solve assignment',done:false}];let filter='all';const list=document.querySelector('ul');const trash='<svg width="12" height="14" viewBox="0 0 16 18" fill="none" aria-hidden="true"><path d="M3 5h10l-1 11H4L3 5Z" fill="currentColor"/><path d="M2 3h12M6 2h4M6 7v6M10 7v6" stroke="currentColor" stroke-width="1.4"/><path d="M6 7v6M10 7v6" stroke="white" stroke-width=".7"/></svg>';function save(){try{localStorage.setItem(key,JSON.stringify(todos))}catch{}render()}function render(){list.replaceChildren();const visible=todos.filter(t=>filter==='all'||t.done===(filter==='completed'));visible.forEach(t=>{const li=document.createElement('li');li.className='row'+(t.done?' done':'');const check=document.createElement('input');check.type='checkbox';check.className='check';check.checked=t.done;check.setAttribute('aria-label','Mark '+t.text+' '+(t.done?'active':'complete'));check.onchange=()=>{t.done=check.checked;save()};const label=document.createElement('span');label.className='label';label.textContent=t.text;label.tabIndex=0;label.title='Double-click or press Enter to edit';function edit(){if(label.querySelector('input'))return;const input=document.createElement('input');input.className='edit';input.value=t.text;input.maxLength=300;input.setAttribute('aria-label','Edit task');label.replaceChildren(input);input.focus();input.select();let finished=false;function finish(cancel){if(finished)return;finished=true;if(!cancel&&input.value.trim())t.text=input.value.trim();save()}input.onkeydown=e=>{if(e.key==='Enter')finish(false);if(e.key==='Escape')finish(true)};input.onblur=()=>finish(false)}label.ondblclick=edit;label.onkeydown=e=>{if(e.key==='Enter'&&e.target===label)edit()};const del=document.createElement('button');del.className='delete';del.setAttribute('aria-label','Delete '+t.text);del.innerHTML=trash;del.onclick=()=>{todos=todos.filter(x=>x.id!==t.id);save()};li.append(check,label,del);list.append(li)});if(!visible.length){const empty=document.createElement('li');empty.className='empty';empty.textContent=filter==='completed'?'No completed tasks yet.':filter==='active'?'All caught up!':'Your list is clear. Add a task above.';list.append(empty)}const n=todos.filter(t=>!t.done).length;document.querySelector('#count').textContent=n+' item'+(n===1?'':'s')+' left';document.querySelectorAll('.filter').forEach(b=>{b.classList.toggle('selected',b.dataset.filter===filter);b.setAttribute('aria-pressed',b.dataset.filter===filter)})}document.querySelector('form').onsubmit=e=>{e.preventDefault();const input=document.querySelector('#task');if(input.value.trim()){todos.push({id:Date.now()+Math.random(),text:input.value.trim(),done:false});input.value='';save();input.focus()}};document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;render()});document.querySelector('#completed').onclick=()=>{todos=todos.filter(t=>!t.done);save()};document.querySelector('#clear').onclick=()=>{todos=[];save()};render();
+const storageKey = 'simple-todo-v1';
+
+let todos;
+try {
+  todos = JSON.parse(localStorage.getItem(storageKey));
+} catch {
+  todos = null;
+}
+
+if (!Array.isArray(todos)) {
+  todos = [
+    { id: 1, text: 'See Lecture', done: false },
+    { id: 2, text: 'Solve assignment', done: false }
+  ];
+}
+
+let currentFilter = 'all';
+const list = document.querySelector('ul');
+const count = document.querySelector('#count');
+
+const trashIcon = `
+  <svg width="12" height="14" viewBox="0 0 16 18" fill="none" aria-hidden="true">
+    <path d="M3 5h10l-1 11H4L3 5Z" fill="currentColor"/>
+    <path d="M2 3h12M6 2h4M6 7v6M10 7v6" stroke="currentColor" stroke-width="1.4"/>
+    <path d="M6 7v6M10 7v6" stroke="white" stroke-width=".7"/>
+  </svg>
+`;
+
+function saveTodos() {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(todos));
+  } catch {
+    // The list can still be used when storage is unavailable.
+  }
+
+  render();
+}
+
+function startEditing(todo, label) {
+  if (label.querySelector('input')) return;
+
+  const input = document.createElement('input');
+  input.className = 'edit';
+  input.value = todo.text;
+  input.maxLength = 300;
+  input.setAttribute('aria-label', 'Edit task');
+  label.replaceChildren(input);
+  input.focus();
+  input.select();
+
+  let finished = false;
+
+  function finishEditing(cancel) {
+    if (finished) return;
+    finished = true;
+
+    if (!cancel && input.value.trim()) {
+      todo.text = input.value.trim();
+    }
+
+    saveTodos();
+  }
+
+  input.onkeydown = (event) => {
+    if (event.key === 'Enter') finishEditing(false);
+    if (event.key === 'Escape') finishEditing(true);
+  };
+
+  input.onblur = () => finishEditing(false);
+}
+
+function render() {
+  list.replaceChildren();
+
+  const visibleTodos = todos.filter((todo) => {
+    return currentFilter === 'all'
+      || todo.done === (currentFilter === 'completed');
+  });
+
+  visibleTodos.forEach((todo) => {
+    const row = document.createElement('li');
+    row.className = `row${todo.done ? ' done' : ''}`;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'check';
+    checkbox.checked = todo.done;
+    checkbox.setAttribute(
+      'aria-label',
+      `Mark ${todo.text} ${todo.done ? 'active' : 'complete'}`
+    );
+    checkbox.onchange = () => {
+      todo.done = checkbox.checked;
+      saveTodos();
+    };
+
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = todo.text;
+    label.tabIndex = 0;
+    label.title = 'Double-click or press Enter to edit';
+    label.ondblclick = () => startEditing(todo, label);
+    label.onkeydown = (event) => {
+      if (event.key === 'Enter' && event.target === label) {
+        startEditing(todo, label);
+      }
+    };
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'delete';
+    deleteButton.setAttribute('aria-label', `Delete ${todo.text}`);
+    deleteButton.innerHTML = trashIcon;
+    deleteButton.onclick = () => {
+      todos = todos.filter((item) => item.id !== todo.id);
+      saveTodos();
+    };
+
+    row.append(checkbox, label, deleteButton);
+    list.append(row);
+  });
+
+  if (!visibleTodos.length) {
+    const emptyMessage = document.createElement('li');
+    emptyMessage.className = 'empty';
+    emptyMessage.textContent = currentFilter === 'completed'
+      ? 'No completed tasks yet.'
+      : currentFilter === 'active'
+        ? 'All caught up!'
+        : 'Your list is clear. Add a task above.';
+    list.append(emptyMessage);
+  }
+
+  const remaining = todos.filter((todo) => !todo.done).length;
+  count.textContent = `${remaining} item${remaining === 1 ? '' : 's'} left`;
+
+  document.querySelectorAll('.filter').forEach((button) => {
+    const isSelected = button.dataset.filter === currentFilter;
+    button.classList.toggle('selected', isSelected);
+    button.setAttribute('aria-pressed', isSelected);
+  });
+}
+
+document.querySelector('form').onsubmit = (event) => {
+  event.preventDefault();
+
+  const input = document.querySelector('#task');
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  todos.push({
+    id: Date.now() + Math.random(),
+    text,
+    done: false
+  });
+
+  input.value = '';
+  saveTodos();
+  input.focus();
+};
+
+document.querySelectorAll('.filter').forEach((button) => {
+  button.onclick = () => {
+    currentFilter = button.dataset.filter;
+    render();
+  };
+});
+
+document.querySelector('#completed').onclick = () => {
+  todos = todos.filter((todo) => !todo.done);
+  saveTodos();
+};
+
+document.querySelector('#clear').onclick = () => {
+  todos = [];
+  saveTodos();
+};
+
+render();
